@@ -1,0 +1,11 @@
+pyenv/
+__pycache__/
+*.pyc
+.vscode/
+.idea/
+node_modules/
+*.log
+build/
+dist/
+.DS_Store
+*.spec
