@@ -329,28 +329,56 @@ class Reviewer:
 """
 
     def _initWeb(self) -> None:
-        self._reps = 0
-        # main window
-        self.web.stdHtml(
-            self.revHtml(),
-            css=["css/reviewer.css"],
-            js=[
-                "js/mathjax.js",
-                "js/vendor/mathjax/tex-chtml-full.js",
-                "js/reviewer.js",
-            ],
-            context=self,
-        )
-        # block default drag & drop behavior while allowing drop events to be received by JS handlers
-        self.web.allow_drops = True
-        self.web.eval("_blockDefaultDragDropBehavior();")
-        # show answer / ease buttons
-        self.bottom.web.stdHtml(
-            self._bottomHTML(),
-            css=["css/toolbar-bottom.css", "css/reviewer-bottom.css"],
-            js=["js/vendor/jquery.min.js", "js/reviewer-bottom.js"],
-            context=ReviewerBottomBar(self),
-        )
+        # --- MODIFICATION HOURGLASS PALACE (FIXED) ---
+        import os
+        import re
+        from aqt.qt import QUrl
+        
+        self.web.set_title("reviewer")
+        self.web.set_bridge_command(self._linkHandler, self)
+        
+        addon_path = os.path.dirname(__file__)
+        dist_folder = os.path.join(addon_path, "palace_dist")
+        index_path = os.path.join(dist_folder, "index.html")
+        
+        try:
+            with open(index_path, "r", encoding="utf-8") as f:
+                html_content = f.read()
+            
+            print(" Injection du Temple (Mode Lambda)...")
+            assets_dir = os.path.join(dist_folder, "assets")
+
+            # CSS
+            for filename in os.listdir(assets_dir):
+                if filename.endswith(".css"):
+                    css_path = os.path.join(assets_dir, filename)
+                    with open(css_path, "r", encoding="utf-8") as f:
+                        css_content = f.read()
+                    # On remplace sans interpréter le contenu
+                    pattern = r'<link[^>]*href="\./assets/' + re.escape(filename) + r'"[^>]*>'
+                    html_content = re.sub(pattern, lambda m: f"<style>{css_content}</style>", html_content)
+
+            # JS (Le coupable du crash)
+            for filename in os.listdir(assets_dir):
+                if filename.endswith(".js"):
+                    js_path = os.path.join(assets_dir, filename)
+                    with open(js_path, "r", encoding="utf-8") as f:
+                        js_content = f.read()
+                    
+                    # On utilise une lambda "m" pour que Python n'essaie pas de lire les \u dans le JS
+                    pattern = r'<script[^>]*src="\./assets/' + re.escape(filename) + r'"[^>]*></script>'
+                    # CORRECTION : Ajout de type="module"
+                    html_content = re.sub(pattern, lambda m: f'<script type="module">{js_content}</script>', html_content)
+
+            print(" Lancement du moteur 3D...")
+            # On utilise une URL locale bidon pour satisfaire Chrome
+            self.web.setHtml(html_content, QUrl("http://127.0.0.1"))
+            
+        except Exception as e:
+            print(f" ERREUR: {e}")
+            import traceback
+            traceback.print_exc()
+        # --- FIN MODIFICATION ---
 
     # Showing the question
     ##########################################################################
@@ -359,41 +387,17 @@ class Reviewer:
         return self.typeAnsFilter(self.mw.prepare_card_text_for_display(buf))
 
     def _showQuestion(self) -> None:
-        self._reps += 1
-        self.state = "question"
-        self.typedAnswer: str = None
-        c = self.card
-        # grab the question and play audio
-        q = c.question()
-        # play audio?
-        if c.autoplay():
-            self.web.setPlaybackRequiresGesture(False)
-            sounds = c.question_av_tags()
-            gui_hooks.reviewer_will_play_question_sounds(c, sounds)
-        else:
-            self.web.setPlaybackRequiresGesture(True)
-            sounds = []
-            gui_hooks.reviewer_will_play_question_sounds(c, sounds)
-        gui_hooks.av_player_will_play_tags(sounds, self.state, self)
-        av_player.play_tags(sounds)
-        # render & update bottom
-        q = self._mungeQA(q)
-        q = gui_hooks.card_will_show(q, c, "reviewQuestion")
-        self._run_state_mutation_hook()
+        # --- MODIFICATION HOURGLASS PALACE ---
+        print("Temple Guard: Bloquage de l'affichage standard.")
+        
+        # On affiche juste les données dans la console noire pour vérifier
+        if self.card:
+            print(f"Question: {self.card.question()}")
 
-        bodyclass = theme_manager.body_classes_for_card_ord(c.ord)
-        a = self.mw.col.media.escape_media_filenames(c.answer())
-
-        self.web.eval(
-            f"_showQuestion({json.dumps(q)}, {json.dumps(a)}, '{bodyclass}');"
-        )
-        self._update_flag_icon()
-        self._update_mark_icon()
-        self._showAnswerButton()
-        self.mw.web.setFocus()
-        # user hook
-        gui_hooks.reviewer_did_show_question(c)
-        self._auto_advance_to_answer_if_enabled()
+        # CORRECTION : On utilise setFocus() au lieu de _showWeb()
+        if self.mw and self.mw.web:
+            self.mw.web.setFocus()
+        # --- FIN MODIFICATION ---
 
     def _auto_advance_to_answer_if_enabled(self) -> None:
         self._clear_auto_advance_timers()
