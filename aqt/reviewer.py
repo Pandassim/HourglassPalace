@@ -7,6 +7,7 @@ import functools
 import json
 import random
 import re
+import json
 from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Any, Literal, Match, Sequence, cast
@@ -387,18 +388,29 @@ class Reviewer:
         return self.typeAnsFilter(self.mw.prepare_card_text_for_display(buf))
 
     def _showQuestion(self) -> None:
-        # --- MODIFICATION HOURGLASS PALACE ---
-        print("Temple Guard: Bloquage de l'affichage standard.")
+        # --- MODIFICATION HOURGLASS PALAC
         
-        # On affiche juste les données dans la console noire pour vérifier
-        if self.card:
-            print(f"Question: {self.card.question()}")
-
-        # CORRECTION : On utilise setFocus() au lieu de _showWeb()
+        # 1. On prépare le paquet de données
+        card_data = {
+            "id": self.card.id,
+            "content": self.card.question(), # Le texte de la question
+            "state": "question"
+        }
+        
+        # 2. On le transforme en texte JSON
+        json_str = json.dumps(card_data)
+        
+        # 3. On l'envoie à React via le Pont
+        # Note : On utilise replace pour échapper les apostrophes potentielles dans le JSON
+        js_command = f"window.hourglass.loadCard({json.dumps(json_str)});"
+        
+        print("Envoi de la carte au Temple...")
+        self.mw.web.eval(js_command)
+        
+        # Focus pour les raccourcis clavier
         if self.mw and self.mw.web:
             self.mw.web.setFocus()
         # --- FIN MODIFICATION ---
-
     def _auto_advance_to_answer_if_enabled(self) -> None:
         self._clear_auto_advance_timers()
         if self.auto_advance_enabled:
