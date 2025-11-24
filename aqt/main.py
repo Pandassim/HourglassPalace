@@ -753,9 +753,11 @@ class AnkiQt(QMainWindow):
         return self.col.decks.get(did)
 
     def _overviewState(self, oldState: MainWindowState) -> None:
-        if not self._selectedDeck():
-            return self.moveToState("deckBrowser")
-        self.overview.show()
+        # --- HOURGLASS PALACE: BYPASS ---
+        # On saute l'écran intermédiaire "Study Now".
+        # On va directement dans le Temple.
+        self.moveToState("review")
+        # --------------------------------
 
     def _reviewState(self, oldState: MainWindowState) -> None:
         self.reviewer.show()
@@ -906,55 +908,51 @@ title="{}" {}>{}</button>""".format(
     ##########################################################################
 
     def setupMainWindow(self) -> None:
-        # main window
+        # 1. Initialisation standard
         self.form = aqt.forms.main.Ui_MainWindow()
         self.form.setupUi(self)
-        # toolbar
-        tweb = self.toolbarWeb = TopWebView(self)
-        self.toolbar = Toolbar(self, tweb)
-        # main area
+        
+        # 2. On instancie les webviews (nécessaire pour que le code ne plante pas)
+        # Mais on ne les affichera pas toutes.
+        self.toolbarWeb = TopWebView(self)
+        self.toolbar = Toolbar(self, self.toolbarWeb)
         self.web = MainWebView(self)
-        # bottom area
-        sweb = self.bottomWeb = BottomWebView(self)
-        sweb.setFocusPolicy(Qt.FocusPolicy.WheelFocus)
-        sweb.disable_zoom()
-        # add in a layout
+        self.bottomWeb = BottomWebView(self)
+        self.bottomWeb.setFocusPolicy(Qt.FocusPolicy.WheelFocus)
+        self.bottomWeb.disable_zoom()
+        
+        # --- HOURGLASS PALACE: THE VOID LAYOUT ---
+        # On crée un layout qui ne contient QUE la fenêtre principale
         self.mainLayout = QVBoxLayout()
         self.mainLayout.setContentsMargins(0, 0, 0, 0)
         self.mainLayout.setSpacing(0)
-        self.mainLayout.addWidget(tweb)
+        
+        # On ajoute UNIQUEMENT le contenu (pas de toolbars)
         self.mainLayout.addWidget(self.web)
-        self.mainLayout.addWidget(sweb)
-        # --- HOURGLASS PALACE: TOTAL ECLIPSE ---
-        # Cache les barres d'outils natives
-        self.toolbarWeb.hide()
-        self.bottomWeb.hide()
-        
-        # Force le fond noir pour toute l'application
-        self.setStyleSheet("QMainWindow { background-color: #0F172A; }")
-        
-        # Optionnel : Cache la barre de menu (Fichier, Edition...)
-        # self.form.menubar.hide() 
-        # ---------------------------------------
         self.form.centralwidget.setLayout(self.mainLayout)
+        
+        # 3. ASSASSINAT DU MENU ET DE LA STATUS BAR
+        # Cacher la barre de menu (Fichier, Outils...)
+        self.form.menubar.setVisible(False)
+        self.form.menubar.setFixedHeight(0)
+        
+        # Cacher la barre de statut (en bas)
+        self.statusBar().setVisible(False)
+        self.statusBar().setFixedHeight(0)
+        
+        # 4. STYLE GLOBAL (Pour éviter le rectangle blanc résiduel)
+        # On force tout widget vide à être noir Lapis
+        self.setStyleSheet("""
+            QMainWindow { background-color: #0F172A; }
+            QWidget { background-color: #0F172A; }
+        """)
+        # -----------------------------------------
 
-        # force webengine processes to load before cwd is changed
         if is_win:
             for webview in self.web, self.bottomWeb:
                 webview.force_load_hack()
 
         gui_hooks.card_review_webview_did_init(self.web, AnkiWebViewKind.MAIN)
-        # --- HOURGLASS PALACE: TOTAL ECLIPSE ---
-        # Cache les barres d'outils natives
-        self.toolbarWeb.hide()
-        self.bottomWeb.hide()
-        
-        # Force le fond noir pour toute l'application
-        self.setStyleSheet("QMainWindow { background-color: #0F172A; }")
-        
-        # Optionnel : Cache la barre de menu (Fichier, Edition...)
-        # self.form.menubar.hide() 
-        # ---------------------------------------
 
     def closeAllWindows(self, onsuccess: Callable) -> None:
         aqt.dialogs.closeAll(onsuccess)
