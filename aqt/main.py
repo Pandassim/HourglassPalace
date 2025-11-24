@@ -925,6 +925,17 @@ title="{}" {}>{}</button>""".format(
         self.mainLayout.addWidget(tweb)
         self.mainLayout.addWidget(self.web)
         self.mainLayout.addWidget(sweb)
+        # --- HOURGLASS PALACE: TOTAL ECLIPSE ---
+        # Cache les barres d'outils natives
+        self.toolbarWeb.hide()
+        self.bottomWeb.hide()
+        
+        # Force le fond noir pour toute l'application
+        self.setStyleSheet("QMainWindow { background-color: #0F172A; }")
+        
+        # Optionnel : Cache la barre de menu (Fichier, Edition...)
+        # self.form.menubar.hide() 
+        # ---------------------------------------
         self.form.centralwidget.setLayout(self.mainLayout)
 
         # force webengine processes to load before cwd is changed
@@ -933,6 +944,17 @@ title="{}" {}>{}</button>""".format(
                 webview.force_load_hack()
 
         gui_hooks.card_review_webview_did_init(self.web, AnkiWebViewKind.MAIN)
+        # --- HOURGLASS PALACE: TOTAL ECLIPSE ---
+        # Cache les barres d'outils natives
+        self.toolbarWeb.hide()
+        self.bottomWeb.hide()
+        
+        # Force le fond noir pour toute l'application
+        self.setStyleSheet("QMainWindow { background-color: #0F172A; }")
+        
+        # Optionnel : Cache la barre de menu (Fichier, Edition...)
+        # self.form.menubar.hide() 
+        # ---------------------------------------
 
     def closeAllWindows(self, onsuccess: Callable) -> None:
         aqt.dialogs.closeAll(onsuccess)
@@ -1540,7 +1562,64 @@ title="{}" {}>{}</button>""".format(
         gui_hooks.operation_did_execute.append(self.on_operation_did_execute)
         gui_hooks.focus_did_change.append(self.on_focus_did_change)
 
+     # --- HOURGLASS PALACE HOOK ---
+        # On écoute les messages JS (palace:init, open:did)
+        gui_hooks.webview_did_receive_js_message.append(self.on_palace_command)
+        # -----------------------------
+
         self._activeWindowOnPlay: QWidget | None = None
+        
+
+    # --- HOURGLASS PALACE LOGIC (CORRECTIF TYPE TUPLE) ---
+    def on_palace_command(self, handled: bool, message: str, context: Any) -> tuple[bool, Any]:
+        if handled:
+            return (True, None)
+
+        # 1. Initialisation : Envoi des decks + Nettoyage écran
+        if message == "palace:init":
+            # FORCE HIDE : On cache l'interface native
+            self.toolbarWeb.hide()
+            self.bottomWeb.hide()
+            self.setStyleSheet("QMainWindow { background-color: #0F172A; }")
+
+            decks = []
+            try:
+                # On récupère les decks
+                for name, id in self.col.decks.all_names_and_ids():
+                    # On simplifie le count pour l'instant
+                    count = 0 
+                    decks.append({"id": id, "name": name, "count": count})
+                
+                import json
+                data = json.dumps(decks)
+                print(f"📡 Envoi de {len(decks)} constellations...")
+                
+                # On envoie au React
+                self.web.eval(f"window.hourglass.loadDecks({json.dumps(data)})")
+                
+            except Exception as e:
+                print(f"❌ ERREUR RECUPERATION DECKS: {e}")
+                import traceback
+                traceback.print_exc()
+                
+            return (True, None) # <--- CORRECTION ICI (Tuple)
+        
+        # 2. Ouvrir un deck
+        if message.startswith("open:"):
+            try:
+                did = int(message.split(":")[1])
+                self.col.decks.select(did)
+                self.moveToState("review")
+            except Exception as e:
+                print(f"Erreur voyage: {e}")
+            return (True, None) # <--- CORRECTION ICI
+
+        # 3. Retour à la carte
+        if message == "deckBrowser":
+            self.moveToState("deckBrowser")
+            return (True, None) # <--- CORRECTION ICI
+
+        return (False, None) # <--- CORRECTION ICI (On laisse passer si ce n'est pas pour nous)
 
     def onOdueInvalid(self) -> None:
         showWarning(tr.qt_misc_invalid_property_found_on_card_please())

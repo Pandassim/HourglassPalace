@@ -154,28 +154,43 @@ class DeckBrowser:
 </center>
 """
 
-    def _renderPage(self, reuse: bool = False) -> None:
-        if not reuse:
+    def _renderPage(self) -> None:
+        # --- HOURGLASS PALACE INJECTION ---
+        import os
+        import re
+        import json
+        from aqt.qt import QUrl
+        
+        # 1. Calculate Paths (Same as Reviewer)
+        addon_path = os.path.dirname(__file__)
+        dist_folder = os.path.join(addon_path, "palace_dist")
+        index_path = os.path.join(dist_folder, "index.html")
+        
+        try:
+            with open(index_path, "r", encoding="utf-8") as f:
+                html_content = f.read()
+            
+            # 2. Inline Assets (Same logic as Reviewer)
+            assets_dir = os.path.join(dist_folder, "assets")
+            for filename in os.listdir(assets_dir):
+                if filename.endswith(".css"):
+                    with open(os.path.join(assets_dir, filename), "r", encoding="utf-8") as f:
+                        html_content = re.sub(r'<link[^>]*href="\./assets/' + re.escape(filename) + r'"[^>]*>', lambda m: f"<style>{f.read()}</style>", html_content)
+                if filename.endswith(".js"):
+                    with open(os.path.join(assets_dir, filename), "r", encoding="utf-8") as f:
+                        html_content = re.sub(r'<script[^>]*src="\./assets/' + re.escape(filename) + r'"[^>]*></script>', lambda m: f'<script type="module">{f.read()}</script>', html_content)
 
-            def get_data(col: Collection) -> RenderData:
-                return RenderData(
-                    tree=col.sched.deck_due_tree(),
-                    current_deck_id=col.decks.get_current_id(),
-                    studied_today=col.studied_today(),
-                    sched_upgrade_required=not col.v3_scheduler(),
-                )
-
-            def success(output: RenderData) -> None:
-                self._render_data = output
-                self.__renderPage(None)
-
-            QueryOp(
-                parent=self.mw,
-                op=get_data,
-                success=success,
-            ).run_in_background()
-        else:
-            self.web.evalWithCallback("window.pageYOffset", self.__renderPage)
+            # 3. Inject
+            print("🚀 Injection du Star Map...")
+            self.mw.web.setHtml(html_content, QUrl("http://127.0.0.1"))
+            
+            # 4. Send Data (Deck List)
+            # We wait a bit for React to load, then send data
+            # Note: Real data sending happens via the "palace:init" hook we added in App.tsx
+            
+        except Exception as e:
+            print(f"ERREUR MAP: {e}")
+        # --- FIN MODIFICATION ---
 
     def __renderPage(self, offset: int | None) -> None:
         data = self._render_data

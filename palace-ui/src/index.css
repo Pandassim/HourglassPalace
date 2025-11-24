@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Inter:wght@300;400;600&family=JetBrains+Mono:wght@400;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -7,6 +9,16 @@ html, body, #root {
   height: 100%;
   margin: 0;
   padding: 0;
-  overflow: hidden; /* Pas de scrollbars dans le temple */
-  background-color: #0F172A; /* Lapis Night par défaut */
+  overflow: hidden;
+  background-color: #0F172A; /* Lapis Night */
+  font-family: 'Inter', sans-serif;
+}
+
+/* Scrollbar invisible pour le contenu de la carte */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
